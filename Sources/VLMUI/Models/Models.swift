@@ -204,7 +204,7 @@ public struct ModelConfig: Codable, Equatable {
     }
 }
 
-public class MCPServerState: Identifiable, ObservableObject, Codable, Equatable {
+public struct MCPServerState: Identifiable, Codable, Equatable {
     public let id: UUID
     public var name: String
     public var description: String
@@ -226,13 +226,9 @@ public class MCPServerState: Identifiable, ObservableObject, Codable, Equatable 
         self.permissionMode = permissionMode
         self.tools = tools
     }
-    
-    public static func == (lhs: MCPServerState, rhs: MCPServerState) -> Bool {
-        lhs.id == rhs.id && lhs.isEnabled == rhs.isEnabled && lhs.permissionMode == rhs.permissionMode && lhs.tools == rhs.tools && lhs.isExpanded == rhs.isExpanded
-    }
 }
 
-public class MCPToolState: Identifiable, ObservableObject, Codable, Equatable {
+public struct MCPToolState: Identifiable, Codable, Equatable {
     public let id: UUID
     public var name: String
     public var isEnabled: Bool
@@ -248,9 +244,5 @@ public class MCPToolState: Identifiable, ObservableObject, Codable, Equatable {
         self.name = name
         self.isEnabled = isEnabled
         self.permission = permission
-    }
-    
-    public static func == (lhs: MCPToolState, rhs: MCPToolState) -> Bool {
-        lhs.id == rhs.id && lhs.isEnabled == rhs.isEnabled && lhs.permission == rhs.permission
     }
 }

@@ -193,8 +193,8 @@ struct RightPaneView: View {
                                 .padding(.vertical, 8)
                         } else {
                             VStack(spacing: 8) {
-                                ForEach(appState.mcpServers) { server in
-                                    MCPServerRowView(server: server)
+                                ForEach($appState.mcpServers) { $server in
+                                    MCPServerRowView(server: $server)
                                 }
                             }
                         }
@@ -413,7 +413,7 @@ struct IntParameterControlView: View {
 // MARK: - MCP Server Row View (High-Fidelity)
 
 struct MCPServerRowView: View {
-    @ObservedObject var server: MCPServerState
+    @Binding var server: MCPServerState
     
     var body: some View {
         let modeText = server.permissionMode == .perTool ? "Per Tool" : "Always Allow All"
@@ -421,7 +421,7 @@ struct MCPServerRowView: View {
         return VStack(alignment: .leading, spacing: 6) {
             // Header: Toggle, Server Name, Badge, Actions Menu, Expand chevron
             HStack(spacing: 8) {
-                Toggle("", isOn: $server.isEnabled)
+                Toggle("", isOn: $server.isEnabled.animation(.easeInOut(duration: 0.18)))
                     .toggleStyle(.switch)
                     .controlSize(.small)
                 
