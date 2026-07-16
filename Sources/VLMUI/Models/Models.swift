@@ -180,7 +180,7 @@ public struct ResponseMetrics: Codable {
 
 public struct ModelConfig: Codable, Equatable {
     public var provider: String = "Google AI Studio"
-    public var modelName: String = "gemini-1.5-flash"
+    public var modelName: String = "Select model"
     
     public var temperature: Double = 0.7
     public var topK: Int = 40
@@ -188,32 +188,69 @@ public struct ModelConfig: Codable, Equatable {
     public var topP: Double = 0.95
     public var minP: Double = 0.05
     
+    // Enablement flags (optional to prevent crash when loading old db files)
+    public var isTemperatureEnabled: Bool? = true
+    public var isTopKEnabled: Bool? = true
+    public var isRepeatPenaltyEnabled: Bool? = false
+    public var isTopPEnabled: Bool? = true
+    public var isMinPEnabled: Bool? = false
+    
     // Additional configurations can go in a metadata dictionary
     public var customSettings: [String: String] = [:]
     
-    public init(provider: String = "Google AI Studio", modelName: String = "gemini-1.5-flash") {
+    public init(provider: String = "Google AI Studio", modelName: String = "Select model") {
         self.provider = provider
         self.modelName = modelName
     }
 }
 
-public struct MCPTool: Identifiable, Codable, Equatable {
-    public var id: UUID = UUID()
+public class MCPServerState: Identifiable, ObservableObject, Codable, Equatable {
+    public let id: UUID
     public var name: String
     public var description: String
-    public var isEnabled: Bool = true
-    public var permission: PermissionType = .ask
+    public var isEnabled: Bool
+    public var permissionMode: PermissionMode
+    public var tools: [MCPToolState]
+    public var isExpanded: Bool = true
     
-    public enum PermissionType: String, Codable, CaseIterable {
-        case ask = "Ask Permission"
-        case alwaysAllowed = "Always Allowed"
+    public enum PermissionMode: String, Codable, CaseIterable {
+        case perTool = "Per Tool"
+        case alwaysAllowAll = "Always Allow All"
     }
     
-    public init(id: UUID = UUID(), name: String, description: String, isEnabled: Bool = true, permission: PermissionType = .ask) {
+    public init(id: UUID = UUID(), name: String, description: String, isEnabled: Bool = true, permissionMode: PermissionMode = .perTool, tools: [MCPToolState] = []) {
         self.id = id
         self.name = name
         self.description = description
         self.isEnabled = isEnabled
+        self.permissionMode = permissionMode
+        self.tools = tools
+    }
+    
+    public static func == (lhs: MCPServerState, rhs: MCPServerState) -> Bool {
+        lhs.id == rhs.id && lhs.isEnabled == rhs.isEnabled && lhs.permissionMode == rhs.permissionMode && lhs.tools == rhs.tools && lhs.isExpanded == rhs.isExpanded
+    }
+}
+
+public class MCPToolState: Identifiable, ObservableObject, Codable, Equatable {
+    public let id: UUID
+    public var name: String
+    public var isEnabled: Bool
+    public var permission: PermissionType
+    
+    public enum PermissionType: String, Codable, CaseIterable {
+        case ask = "Ask"
+        case alwaysAllowed = "Allow"
+    }
+    
+    public init(id: UUID = UUID(), name: String, isEnabled: Bool = true, permission: PermissionType = .ask) {
+        self.id = id
+        self.name = name
+        self.isEnabled = isEnabled
         self.permission = permission
+    }
+    
+    public static func == (lhs: MCPToolState, rhs: MCPToolState) -> Bool {
+        lhs.id == rhs.id && lhs.isEnabled == rhs.isEnabled && lhs.permission == rhs.permission
     }
 }

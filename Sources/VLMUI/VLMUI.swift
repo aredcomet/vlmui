@@ -23,7 +23,6 @@ struct VLMUIApp: App {
                         .environmentObject(appState)
                 }
         }
-        .windowStyle(.hiddenTitleBar)
         
         Settings {
             SettingsView()
@@ -39,8 +38,31 @@ class AppState: ObservableObject {
     @Published var selectedThreadId: UUID? = nil
     @Published var systemInstruction: String = ""
     @Published var modelConfig = ModelConfig()
-    @Published var mcpTools: [MCPTool] = []
+    @Published var mcpServers: [MCPServerState] = []
     @Published var isSettingsPresented: Bool = false
+    
+    // Shared Workspace Actions & Dialog States
+    @Published var showNewFolderDialog: Bool = false
+    @Published var parentFolderForNewFolder: Folder? = nil
+    
+    func createNewChat(in folder: Folder? = nil) {
+        let newChat = ChatThread(title: "New Chat Thread")
+        newChat.messages = []
+        
+        if let folder = folder {
+            folder.chats.append(newChat)
+        } else {
+            if folders.isEmpty {
+                let generalFolder = Folder(name: "General", chats: [newChat])
+                folders.append(generalFolder)
+            } else {
+                folders[0].chats.append(newChat)
+            }
+        }
+        
+        selectedThreadId = newChat.id
+        saveWorkspace()
+    }
     
     init() {
         // Load settings
@@ -54,7 +76,7 @@ class AppState: ObservableObject {
         self.systemInstruction = workspace.systemInstruction
         
         // Load MCP tools
-        self.mcpTools = StorageService.shared.readMCPTools()
+        self.mcpServers = StorageService.shared.readMCPServers()
         
         // Populate default layout if empty
         if self.folders.isEmpty {

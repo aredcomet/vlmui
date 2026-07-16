@@ -92,11 +92,10 @@ public class StorageService {
     
     // MARK: - Read mcp.json (Manually Edited Config)
     
-    public func readMCPTools() -> [MCPTool] {
+    public func readMCPServers() -> [MCPServerState] {
         guard FileManager.default.fileExists(atPath: mcpConfigFileUrl.path) else {
-            // Write a dummy default mcp.json if it does not exist so user can edit it
             createDefaultMCPConfig()
-            return getStubMCPTools()
+            return getStubMCPServers()
         }
         
         do {
@@ -104,31 +103,70 @@ public class StorageService {
             let decoder = JSONDecoder()
             let rawConfig = try decoder.decode(RawMCPConfig.self, from: data)
             
-            var tools: [MCPTool] = []
+            var servers: [MCPServerState] = []
             for (serverName, serverInfo) in rawConfig.mcpServers {
-                // If the user defines tools directly or we parse servers,
-                // we can represent each server as a tool/service options list.
-                // In a true MCP structure, we'd query the server for tools.
-                // For now, we will dynamically present each configured server in the UI.
-                tools.append(MCPTool(
+                let description: String
+                if let cmd = serverInfo.command {
+                    let args = serverInfo.args?.joined(separator: " ") ?? ""
+                    description = "Command: \(cmd) \(args)"
+                } else if let url = serverInfo.url {
+                    description = "URL: \(url)"
+                } else {
+                    description = "Configured Server"
+                }
+                
+                // Populate realistic mock tools for testing
+                let tools: [MCPToolState]
+                if serverName == "duckduckgo" || serverName == "ddg-search" {
+                    tools = [
+                        MCPToolState(name: "search", isEnabled: true, permission: .alwaysAllowed),
+                        MCPToolState(name: "fetch_content", isEnabled: true, permission: .alwaysAllowed),
+                        MCPToolState(name: "get_current_date", isEnabled: true, permission: .alwaysAllowed)
+                    ]
+                } else if serverName == "huggingface" {
+                    tools = [
+                        MCPToolState(name: "text_generation", isEnabled: true, permission: .ask),
+                        MCPToolState(name: "image_classification", isEnabled: true, permission: .alwaysAllowed)
+                    ]
+                } else if serverName == "ragsearch" {
+                    tools = [
+                        MCPToolState(name: "query_kb", isEnabled: true, permission: .alwaysAllowed)
+                    ]
+                } else if serverName == "datacommons-mcp" {
+                    tools = [
+                        MCPToolState(name: "get_data", isEnabled: true, permission: .ask),
+                        MCPToolState(name: "query_stats", isEnabled: true, permission: .ask)
+                    ]
+                } else {
+                    tools = [
+                        MCPToolState(name: "execute", isEnabled: true, permission: .ask)
+                    ]
+                }
+                
+                servers.append(MCPServerState(
                     name: serverName,
-                    description: "Command: \(serverInfo.command) \(serverInfo.args.joined(separator: " "))",
+                    description: description,
                     isEnabled: true,
-                    permission: .ask
+                    permissionMode: .perTool,
+                    tools: tools
                 ))
             }
-            return tools
+            return servers
         } catch {
             print("Failed to parse mcp.json: \(error). Using fallback stubs.")
-            return getStubMCPTools()
+            return getStubMCPServers()
         }
     }
     
-    private func getStubMCPTools() -> [MCPTool] {
+    private func getStubMCPServers() -> [MCPServerState] {
         return [
-            MCPTool(name: "Fetch URL", description: "Retrieves webpage content using HTTP GET", isEnabled: true, permission: .ask),
-            MCPTool(name: "File Manager", description: "Performs file read, write, and list operations in sandbox", isEnabled: false, permission: .ask),
-            MCPTool(name: "Shell Executor", description: "Runs shell commands locally", isEnabled: false, permission: .ask)
+            MCPServerState(name: "fetch-url", description: "Retrieves webpage content using HTTP GET", isEnabled: true, tools: [
+                MCPToolState(name: "fetch_webpage", isEnabled: true, permission: .alwaysAllowed)
+            ]),
+            MCPServerState(name: "filesystem", description: "Performs sandbox filesystem access", isEnabled: false, tools: [
+                MCPToolState(name: "read_file", isEnabled: true, permission: .ask),
+                MCPToolState(name: "write_file", isEnabled: false, permission: .ask)
+            ])
         ]
     }
     
@@ -169,6 +207,9 @@ struct RawMCPConfig: Codable {
 }
 
 struct RawMCPServer: Codable {
-    var command: String
-    var args: [String]
+    var command: String?
+    var args: [String]?
+    var env: [String: String]?
+    var url: String?
+    var headers: [String: String]?
 }

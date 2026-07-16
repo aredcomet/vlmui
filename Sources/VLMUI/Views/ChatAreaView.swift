@@ -16,41 +16,6 @@ struct ChatAreaView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // 1. Top bar: Model Selector & Stats
-            HStack {
-                HStack(spacing: 6) {
-                    Image(systemName: appState.modelConfig.provider == "Google AI Studio" ? "g.circle.fill" : "o.circle.fill")
-                        .foregroundColor(.accentColor)
-                    
-                    Picker("", selection: $appState.modelConfig.modelName) {
-                        if appState.modelConfig.provider == "Google AI Studio" {
-                            Text("gemini-1.5-flash").tag("gemini-1.5-flash")
-                            Text("gemini-1.5-pro").tag("gemini-1.5-pro")
-                            Text("gemini-2.0-flash").tag("gemini-2.0-flash")
-                        } else {
-                            Text("gpt-4o").tag("gpt-4o")
-                            Text("gpt-4o-mini").tag("gpt-4o-mini")
-                            Text("o1-mini").tag("o1-mini")
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .frame(width: 160)
-                }
-                
-                Spacer()
-                
-                // Active Chat Session Tokens Metrics
-                if let activeThread = currentThread {
-                    Text("Total Messages: \(activeThread.messages.count)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .background(Color(NSColor.windowBackgroundColor))
-            
-            Divider()
             
             // 2. Chat Area scrollview
             if let thread = currentThread {
@@ -166,8 +131,8 @@ struct ChatAreaView: View {
                         .buttonStyle(.plain)
                         .help("Attach Image")
                         
-                        // Main Input Text Field (Multiline-like)
-                        TextField("Type message...", text: $inputText)
+                        TextField("Type message...", text: $inputText, axis: .vertical)
+                            .lineLimit(1...6)
                             .textFieldStyle(.roundedBorder)
                             .onSubmit {
                                 sendMessage()
@@ -176,15 +141,59 @@ struct ChatAreaView: View {
                         Button(action: sendMessage) {
                             Image(systemName: "arrow.up.circle.fill")
                                 .font(.system(size: 24))
-                                .foregroundColor(inputText.isEmpty ? .secondary : .accentColor)
+                                .foregroundColor((inputText.isEmpty || appState.modelConfig.modelName == "Select model") ? .secondary : .accentColor)
                         }
                         .buttonStyle(.plain)
-                        .disabled(inputText.isEmpty && selectedImageData == nil)
+                        .disabled((inputText.isEmpty && selectedImageData == nil) || appState.modelConfig.modelName == "Select model")
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
                 }
                 .background(Color(NSColor.windowBackgroundColor).opacity(0.5))
+            }
+        }
+        .toolbar {
+            if currentThread != nil {
+                ToolbarItem(placement: .navigation) {
+                    HStack(spacing: 8) {
+                        Button(action: {
+                            appState.parentFolderForNewFolder = nil
+                            appState.showNewFolderDialog = true
+                        }) {
+                            Image(systemName: "folder.badge.plus")
+                        }
+                        .help("New Folder")
+                        
+                        Button(action: {
+                            appState.createNewChat(in: nil)
+                        }) {
+                            Image(systemName: "plus")
+                        }
+                        .help("New Chat")
+                    }
+                }
+                
+                ToolbarItem(placement: .principal) {
+                    HStack(spacing: 6) {
+                        Image(systemName: appState.modelConfig.modelName == "Select model" ? "cpu" : (appState.modelConfig.provider == "Google AI Studio" ? "g.circle.fill" : "o.circle.fill"))
+                            .foregroundColor(.accentColor)
+                        
+                        Picker("", selection: $appState.modelConfig.modelName) {
+                            Text("Select model").tag("Select model")
+                            if appState.modelConfig.provider == "Google AI Studio" {
+                                Text("gemini-1.5-flash").tag("gemini-1.5-flash")
+                                Text("gemini-1.5-pro").tag("gemini-1.5-pro")
+                                Text("gemini-2.0-flash").tag("gemini-2.0-flash")
+                            } else {
+                                Text("gpt-4o").tag("gpt-4o")
+                                Text("gpt-4o-mini").tag("gpt-4o-mini")
+                                Text("o1-mini").tag("o1-mini")
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .frame(width: 150)
+                    }
+                }
             }
         }
         .sheet(isPresented: Binding(
@@ -250,6 +259,7 @@ struct ChatAreaView: View {
     }
     
     private func sendMessage() {
+        guard appState.modelConfig.modelName != "Select model" else { return }
         guard let thread = currentThread else { return }
         let trimmedText = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedText.isEmpty || selectedImageData != nil else { return }

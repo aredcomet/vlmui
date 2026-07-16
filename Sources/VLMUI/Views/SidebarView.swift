@@ -16,47 +16,10 @@ struct SidebarView: View {
     @State private var renamingChat: ChatThread? = nil
     @State private var renameText = ""
     
-    @State private var showNewFolderDialog = false
-    @State private var parentFolderForNewFolder: Folder? = nil // nil means root
     @State private var newFolderName = ""
     
     var body: some View {
         VStack(spacing: 0) {
-            // Header with Create Buttons
-            HStack {
-                Text("VLM Workspace")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.secondary)
-                
-                Spacer()
-                
-                // Add Folder
-                Button(action: {
-                    parentFolderForNewFolder = nil
-                    newFolderName = ""
-                    showNewFolderDialog = true
-                }) {
-                    Image(systemName: "folder.badge.plus")
-                        .foregroundColor(.primary)
-                }
-                .buttonStyle(.plain)
-                .help("New Folder")
-                
-                // Add Chat at Root
-                Button(action: {
-                    createNewChat(in: nil)
-                }) {
-                    Image(systemName: "plus")
-                        .foregroundColor(.primary)
-                }
-                .buttonStyle(.plain)
-                .help("New Chat")
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            
-            Divider()
             
             // Folder & Chat Tree
             ScrollView {
@@ -86,12 +49,12 @@ struct SidebarView: View {
                                 folder: folder,
                                 depth: 0,
                                 onAddSubfolder: { parent in
-                                    parentFolderForNewFolder = parent
+                                    appState.parentFolderForNewFolder = parent
                                     newFolderName = ""
-                                    showNewFolderDialog = true
+                                    appState.showNewFolderDialog = true
                                 },
                                 onAddChat: { parent in
-                                    createNewChat(in: parent)
+                                    appState.createNewChat(in: parent)
                                 },
                                 onRenameFolder: { folder in
                                     renamingFolder = folder
@@ -146,6 +109,7 @@ struct SidebarView: View {
             .padding(12)
         }
         .background(Color(NSColor.windowBackgroundColor).opacity(0.85))
+        .navigationTitle("")
         
         // MARK: - Alerts and Sheets
         
@@ -201,9 +165,9 @@ struct SidebarView: View {
         }
         
         // New Folder Dialog
-        .sheet(isPresented: $showNewFolderDialog) {
+        .sheet(isPresented: $appState.showNewFolderDialog) {
             VStack(alignment: .leading, spacing: 16) {
-                Text(parentFolderForNewFolder == nil ? "New Root Folder" : "New Subfolder")
+                Text(appState.parentFolderForNewFolder == nil ? "New Root Folder" : "New Subfolder")
                     .font(.headline)
                 
                 TextField("Folder Name", text: $newFolderName)
@@ -215,7 +179,7 @@ struct SidebarView: View {
                 HStack {
                     Spacer()
                     Button("Cancel") {
-                        showNewFolderDialog = false
+                        appState.showNewFolderDialog = false
                     }
                     Button("Create") {
                         performCreateFolder()
@@ -229,26 +193,6 @@ struct SidebarView: View {
     }
     
     // MARK: - Actions
-    
-    private func createNewChat(in folder: Folder?) {
-        let newChat = ChatThread(title: "New Chat Thread")
-        newChat.messages = []
-        
-        if let folder = folder {
-            folder.chats.append(newChat)
-        } else {
-            // If no folder, create a default "General" folder to hold it or place in first folder
-            if appState.folders.isEmpty {
-                let generalFolder = Folder(name: "General", chats: [newChat])
-                appState.folders.append(generalFolder)
-            } else {
-                appState.folders[0].chats.append(newChat)
-            }
-        }
-        
-        appState.selectedThreadId = newChat.id
-        saveWorkspaceState()
-    }
     
     private func performRename() {
         if let folder = renamingFolder {
@@ -266,13 +210,13 @@ struct SidebarView: View {
         guard !newFolderName.isEmpty else { return }
         let newFolder = Folder(name: newFolderName)
         
-        if let parent = parentFolderForNewFolder {
+        if let parent = appState.parentFolderForNewFolder {
             parent.subfolders.append(newFolder)
         } else {
             appState.folders.append(newFolder)
         }
         
-        showNewFolderDialog = false
+        appState.showNewFolderDialog = false
         saveWorkspaceState()
     }
     

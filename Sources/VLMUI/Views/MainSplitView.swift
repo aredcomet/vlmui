@@ -16,6 +16,7 @@ struct MainSplitView: View {
         } detail: {
             // Right pane: Configuration Details
             RightPaneView()
+                .ignoresSafeArea(.container, edges: .top)
                 .navigationSplitViewColumnWidth(min: 250, ideal: 300, max: 400)
         }
         .navigationTitle("")
