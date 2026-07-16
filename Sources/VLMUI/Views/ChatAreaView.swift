@@ -155,43 +155,52 @@ struct ChatAreaView: View {
         .toolbar {
             if currentThread != nil {
                 ToolbarItem(placement: .navigation) {
-                    HStack(spacing: 8) {
-                        Button(action: {
-                            appState.parentFolderForNewFolder = nil
-                            appState.showNewFolderDialog = true
-                        }) {
-                            Image(systemName: "folder.badge.plus")
+                    HStack(spacing: 16) {
+                        // Toolgroup
+                        HStack(spacing: 8) {
+                            Button(action: {
+                                appState.parentFolderForNewFolder = nil
+                                appState.showNewFolderDialog = true
+                            }) {
+                                Image(systemName: "folder.badge.plus")
+                            }
+                            .help("New Folder")
+                            
+                            Button(action: {
+                                appState.createNewChat(in: nil)
+                            }) {
+                                Image(systemName: "plus")
+                            }
+                            .help("New Chat")
                         }
-                        .help("New Folder")
                         
-                        Button(action: {
-                            appState.createNewChat(in: nil)
-                        }) {
-                            Image(systemName: "plus")
-                        }
-                        .help("New Chat")
-                    }
-                }
-                
-                ToolbarItem(placement: .principal) {
-                    HStack(spacing: 6) {
-                        Image(systemName: appState.modelConfig.modelName == "Select model" ? "cpu" : (appState.modelConfig.provider == "Google AI Studio" ? "g.circle.fill" : "o.circle.fill"))
-                            .foregroundColor(.accentColor)
-                        
-                        Picker("", selection: $appState.modelConfig.modelName) {
-                            Text("Select model").tag("Select model")
+                        // Unified model selection Menu button
+                        Menu {
+                            Button("Select model") {
+                                appState.modelConfig.modelName = "Select model"
+                            }
+                            Divider()
                             if appState.modelConfig.provider == "Google AI Studio" {
-                                Text("gemini-1.5-flash").tag("gemini-1.5-flash")
-                                Text("gemini-1.5-pro").tag("gemini-1.5-pro")
-                                Text("gemini-2.0-flash").tag("gemini-2.0-flash")
+                                Button("gemini-1.5-flash") { appState.modelConfig.modelName = "gemini-1.5-flash" }
+                                Button("gemini-1.5-pro") { appState.modelConfig.modelName = "gemini-1.5-pro" }
+                                Button("gemini-2.0-flash") { appState.modelConfig.modelName = "gemini-2.0-flash" }
                             } else {
-                                Text("gpt-4o").tag("gpt-4o")
-                                Text("gpt-4o-mini").tag("gpt-4o-mini")
-                                Text("o1-mini").tag("o1-mini")
+                                Button("gpt-4o") { appState.modelConfig.modelName = "gpt-4o" }
+                                Button("gpt-4o-mini") { appState.modelConfig.modelName = "gpt-4o-mini" }
+                                Button("o1-mini") { appState.modelConfig.modelName = "o1-mini" }
+                            }
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: appState.modelConfig.modelName == "Select model" ? "cpu" : (appState.modelConfig.provider == "Google AI Studio" ? "g.circle.fill" : "o.circle.fill"))
+                                    .foregroundColor(.accentColor)
+                                    .padding(.leading, 4)
+                                
+                                Text(appState.modelConfig.modelName)
+                                    .padding(.trailing, 4)
                             }
                         }
-                        .pickerStyle(.menu)
-                        .frame(width: 150)
+                        .menuStyle(.button)
+                        .frame(width: 170)
                     }
                 }
                 
