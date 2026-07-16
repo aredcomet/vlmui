@@ -457,22 +457,27 @@ struct MCPServerRowView: View {
                 } label: {
                     Image(systemName: "ellipsis")
                         .foregroundColor(.secondary)
-                        .padding(4)
+                        .frame(width: 28, height: 28)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 
-                // Collapse Chevron
-                Button(action: {
-                    withAnimation(.easeInOut(duration: 0.15)) {
-                        isExpanded.toggle()
+                // Collapse Chevron (Only shown when server is enabled)
+                if server.isEnabled {
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            isExpanded.toggle()
+                        }
+                    }) {
+                        Image(systemName: "chevron.right")
+                            .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.secondary)
+                            .frame(width: 28, height: 28)
+                            .contentShape(Rectangle())
                     }
-                }) {
-                    Image(systemName: "chevron.right")
-                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(.secondary)
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
             .padding(.vertical, 4)
             
