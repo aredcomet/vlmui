@@ -1,0 +1,174 @@
+import Foundation
+
+@MainActor
+public class StorageService {
+    public static let shared = StorageService()
+    
+    // Paths are based in the workspace root for portability
+    private let workspacePath = "/Users/bran/src/play/vlmui"
+    
+    private var dataFileUrl: URL {
+        URL(fileURLWithPath: workspacePath).appendingPathComponent("data/chats_db.json")
+    }
+    
+    private var settingsFileUrl: URL {
+        URL(fileURLWithPath: workspacePath).appendingPathComponent("data/settings_db.json")
+    }
+    
+    public var mcpConfigFileUrl: URL {
+        URL(fileURLWithPath: workspacePath).appendingPathComponent("data/mcp.json")
+    }
+    
+    private init() {
+        let dataDirUrl = URL(fileURLWithPath: workspacePath).appendingPathComponent("data")
+        try? FileManager.default.createDirectory(at: dataDirUrl, withIntermediateDirectories: true)
+    }
+    
+    // MARK: - Save and Load Workspace (Folders & Threads)
+    
+    public func saveWorkspace(folders: [Folder], selectedThreadId: UUID?, systemInstruction: String) {
+        let payload = WorkspacePayload(
+            folders: folders,
+            selectedThreadId: selectedThreadId,
+            systemInstruction: systemInstruction
+        )
+        
+        do {
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            let data = try encoder.encode(payload)
+            try data.write(to: dataFileUrl, options: .atomic)
+            print("Successfully saved workspace data to \(dataFileUrl.path)")
+        } catch {
+            print("Failed to save workspace data: \(error)")
+        }
+    }
+    
+    public func loadWorkspace() -> (folders: [Folder], selectedThreadId: UUID?, systemInstruction: String) {
+        guard FileManager.default.fileExists(atPath: dataFileUrl.path) else {
+            return (folders: [], selectedThreadId: nil, systemInstruction: "")
+        }
+        
+        do {
+            let data = try Data(contentsOf: dataFileUrl)
+            let decoder = JSONDecoder()
+            let payload = try decoder.decode(WorkspacePayload.self, from: data)
+            return (folders: payload.folders, selectedThreadId: payload.selectedThreadId, systemInstruction: payload.systemInstruction)
+        } catch {
+            print("Failed to load workspace data: \(error)")
+            return (folders: [], selectedThreadId: nil, systemInstruction: "")
+        }
+    }
+    
+    // MARK: - Save and Load Settings (API Configurations)
+    
+    public func saveSettings(config: ModelConfig, connectors: [String: String]) {
+        let payload = SettingsPayload(config: config, connectors: connectors)
+        do {
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = .prettyPrinted
+            let data = try encoder.encode(payload)
+            try data.write(to: settingsFileUrl, options: .atomic)
+        } catch {
+            print("Failed to save settings: \(error)")
+        }
+    }
+    
+    public func loadSettings() -> (config: ModelConfig, connectors: [String: String]) {
+        guard FileManager.default.fileExists(atPath: settingsFileUrl.path) else {
+            return (config: ModelConfig(), connectors: [:])
+        }
+        
+        do {
+            let data = try Data(contentsOf: settingsFileUrl)
+            let decoder = JSONDecoder()
+            let payload = try decoder.decode(SettingsPayload.self, from: data)
+            return (config: payload.config, connectors: payload.connectors)
+        } catch {
+            print("Failed to load settings: \(error)")
+            return (config: ModelConfig(), connectors: [:])
+        }
+    }
+    
+    // MARK: - Read mcp.json (Manually Edited Config)
+    
+    public func readMCPTools() -> [MCPTool] {
+        guard FileManager.default.fileExists(atPath: mcpConfigFileUrl.path) else {
+            // Write a dummy default mcp.json if it does not exist so user can edit it
+            createDefaultMCPConfig()
+            return getStubMCPTools()
+        }
+        
+        do {
+            let data = try Data(contentsOf: mcpConfigFileUrl)
+            let decoder = JSONDecoder()
+            let rawConfig = try decoder.decode(RawMCPConfig.self, from: data)
+            
+            var tools: [MCPTool] = []
+            for (serverName, serverInfo) in rawConfig.mcpServers {
+                // If the user defines tools directly or we parse servers,
+                // we can represent each server as a tool/service options list.
+                // In a true MCP structure, we'd query the server for tools.
+                // For now, we will dynamically present each configured server in the UI.
+                tools.append(MCPTool(
+                    name: serverName,
+                    description: "Command: \(serverInfo.command) \(serverInfo.args.joined(separator: " "))",
+                    isEnabled: true,
+                    permission: .ask
+                ))
+            }
+            return tools
+        } catch {
+            print("Failed to parse mcp.json: \(error). Using fallback stubs.")
+            return getStubMCPTools()
+        }
+    }
+    
+    private func getStubMCPTools() -> [MCPTool] {
+        return [
+            MCPTool(name: "Fetch URL", description: "Retrieves webpage content using HTTP GET", isEnabled: true, permission: .ask),
+            MCPTool(name: "File Manager", description: "Performs file read, write, and list operations in sandbox", isEnabled: false, permission: .ask),
+            MCPTool(name: "Shell Executor", description: "Runs shell commands locally", isEnabled: false, permission: .ask)
+        ]
+    }
+    
+    private func createDefaultMCPConfig() {
+        let sample = RawMCPConfig(
+            mcpServers: [
+                "weather": RawMCPServer(command: "npx", args: ["-y", "@modelcontextprotocol/server-weather"]),
+                "filesystem": RawMCPServer(command: "node", args: ["/path/to/filesystem-server.js", "/Users/bran/src/play/vlmui"])
+            ]
+        )
+        do {
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = .prettyPrinted
+            let data = try encoder.encode(sample)
+            try data.write(to: mcpConfigFileUrl, options: .atomic)
+            print("Created default mcp.json at \(mcpConfigFileUrl.path)")
+        } catch {
+            print("Failed to write default mcp.json: \(error)")
+        }
+    }
+}
+
+// MARK: - Storage Payloads
+
+struct WorkspacePayload: Codable {
+    var folders: [Folder]
+    var selectedThreadId: UUID?
+    var systemInstruction: String
+}
+
+struct SettingsPayload: Codable {
+    var config: ModelConfig
+    var connectors: [String: String]
+}
+
+struct RawMCPConfig: Codable {
+    var mcpServers: [String: RawMCPServer]
+}
+
+struct RawMCPServer: Codable {
+    var command: String
+    var args: [String]
+}
