@@ -44,7 +44,6 @@ class AppState: ObservableObject {
     // Shared Workspace Actions & Dialog States
     @Published var showNewFolderDialog: Bool = false
     @Published var parentFolderForNewFolder: Folder? = nil
-    @Published var isRightPaneVisible: Bool = true
     
     func createNewChat(in folder: Folder? = nil) {
         let newChat = ChatThread(title: "New Chat Thread")

@@ -2,26 +2,22 @@ import SwiftUI
 
 struct MainSplitView: View {
     @EnvironmentObject var appState: AppState
-    @State private var columnVisibility: NavigationSplitViewVisibility = .doubleColumn
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             // Left pane: Sidebar
             SidebarView()
                 .navigationSplitViewColumnWidth(min: 220, ideal: 250, max: 320)
+        } content: {
+            // Middle pane: Chat Area
+            ChatAreaView(columnVisibility: $columnVisibility)
+                .navigationSplitViewColumnWidth(min: 400, ideal: 600)
         } detail: {
-            // Main content pane containing Chat and collapsible Right Pane
-            HStack(spacing: 0) {
-                ChatAreaView()
-                
-                if appState.isRightPaneVisible {
-                    Divider()
-                    RightPaneView()
-                        .frame(width: 300)
-                        .transition(.move(edge: .trailing))
-                }
-            }
-            .navigationTitle("")
+            // Right pane: Configuration Details
+            RightPaneView()
+                .navigationSplitViewColumnWidth(min: 250, ideal: 300, max: 400)
         }
+        .navigationTitle("")
     }
 }

@@ -3,6 +3,7 @@ import AppKit
 
 struct ChatAreaView: View {
     @EnvironmentObject var appState: AppState
+    @Binding var columnVisibility: NavigationSplitViewVisibility
     @State private var inputText: String = ""
     @State private var selectedImageData: Data? = nil
     @State private var selectedImageMimeType: String? = nil
@@ -197,8 +198,12 @@ struct ChatAreaView: View {
                 
                 ToolbarItem(placement: .primaryAction) {
                     Button(action: {
-                        withAnimation(.easeInOut(duration: 0.18)) {
-                            appState.isRightPaneVisible.toggle()
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            if columnVisibility == .all {
+                                columnVisibility = .doubleColumn
+                            } else {
+                                columnVisibility = .all
+                            }
                         }
                     }) {
                         Image(systemName: "sidebar.right")
