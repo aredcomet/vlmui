@@ -57,9 +57,18 @@ struct RightPaneView: View {
                     }
                     .padding(.top, 6)
                 } label: {
-                    Label("System Instructions", systemImage: "macpro.gen1")
-                        .font(.headline)
-                        .foregroundColor(.primary)
+                    HStack {
+                        Label("System Instructions", systemImage: "macpro.gen1")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        Spacer()
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        withAnimation {
+                            isSystemInstructionsExpanded.toggle()
+                        }
+                    }
                 }
                 
                 Divider()
@@ -145,9 +154,18 @@ struct RightPaneView: View {
                     }
                     .padding(.top, 8)
                 } label: {
-                    Label("Sampling Parameters", systemImage: "slider.horizontal.3")
-                        .font(.headline)
-                        .foregroundColor(.primary)
+                    HStack {
+                        Label("Sampling Parameters", systemImage: "slider.horizontal.3")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        Spacer()
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        withAnimation {
+                            isParametersExpanded.toggle()
+                        }
+                    }
                 }
                 
                 Divider()
@@ -183,9 +201,18 @@ struct RightPaneView: View {
                     }
                     .padding(.top, 6)
                 } label: {
-                    Label("MCP Tools", systemImage: "wrench.and.screwdriver.fill")
-                        .font(.headline)
-                        .foregroundColor(.primary)
+                    HStack {
+                        Label("MCP Tools", systemImage: "wrench.and.screwdriver.fill")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        Spacer()
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        withAnimation {
+                            isMCPToolsExpanded.toggle()
+                        }
+                    }
                 }
             }
             .padding()
