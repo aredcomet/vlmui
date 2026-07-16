@@ -194,6 +194,17 @@ struct ChatAreaView: View {
                         .frame(width: 150)
                     }
                 }
+                
+                ToolbarItem(placement: .primaryAction) {
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.18)) {
+                            appState.isRightPaneVisible.toggle()
+                        }
+                    }) {
+                        Image(systemName: "sidebar.right")
+                    }
+                    .help("Toggle Configuration Panel")
+                }
             }
         }
         .sheet(isPresented: Binding(
