@@ -414,7 +414,6 @@ struct IntParameterControlView: View {
 
 struct MCPServerRowView: View {
     @ObservedObject var server: MCPServerState
-    @State private var isExpanded = true
     
     var body: some View {
         let modeText = server.permissionMode == .perTool ? "Per Tool" : "Always Allow All"
@@ -441,48 +440,11 @@ struct MCPServerRowView: View {
                 .cornerRadius(10)
                 
                 Spacer()
-                
-                // Server Options Menu (...)
-                Menu {
-                    Button(action: { /* Pin action */ }) {
-                        Label("Pin to chat input", systemImage: "pin")
-                    }
-                    Button(action: { /* Restart action */ }) {
-                        Label("Force Restart", systemImage: "arrow.clockwise")
-                    }
-                    Divider()
-                    Button(role: .destructive, action: { /* Uninstall action */ }) {
-                        Label("Uninstall", systemImage: "trash")
-                    }
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .foregroundColor(.secondary)
-                        .frame(width: 28, height: 28)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                
-                // Collapse Chevron (Only shown when server is enabled)
-                if server.isEnabled {
-                    Button(action: {
-                        withAnimation(.easeInOut(duration: 0.15)) {
-                            isExpanded.toggle()
-                        }
-                    }) {
-                        Image(systemName: "chevron.right")
-                            .rotationEffect(.degrees(isExpanded ? 90 : 0))
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(.secondary)
-                            .frame(width: 28, height: 28)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                }
             }
             .padding(.vertical, 4)
             
             // Expanded Server Tool List
-            if server.isEnabled && isExpanded {
+            if server.isEnabled {
                 VStack(alignment: .leading, spacing: 6) {
                     // Subheader: Tools refresh and Permission Mode picker
                     HStack {
