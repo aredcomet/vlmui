@@ -104,7 +104,8 @@ public class StorageService {
             let rawConfig = try decoder.decode(RawMCPConfig.self, from: data)
             
             var servers: [MCPServerState] = []
-            for (serverName, serverInfo) in rawConfig.mcpServers {
+            let sortedServers = rawConfig.mcpServers.sorted(by: { $0.key < $1.key })
+            for (serverName, serverInfo) in sortedServers {
                 let description: String
                 if let cmd = serverInfo.command {
                     let args = serverInfo.args?.joined(separator: " ") ?? ""
