@@ -39,6 +39,9 @@ struct ChatAreaView: View {
                                     },
                                     onAlternativeChanged: { newIndex in
                                         changeAlternative(message: msg, toIndex: newIndex, in: thread)
+                                        withAnimation(.easeInOut(duration: 0.15)) {
+                                            proxy.scrollTo(msg.id, anchor: .bottom)
+                                        }
                                     },
                                     onBranch: {
                                         branchConversation(atIndex: index, in: thread)
