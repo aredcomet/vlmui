@@ -572,14 +572,14 @@ struct MessageBubbleView: View {
                             HStack {
                                 Image(systemName: "brain")
                                     .foregroundColor(.accentColor)
-                                    .font(.system(size: 10))
+                                    .font(.system(size: 11))
                                 Text("Thinking Process")
-                                    .font(.system(size: 10, weight: .bold))
+                                    .font(.system(size: 11, weight: .bold))
                                     .foregroundColor(.secondary)
                                 Spacer()
                                 Image(systemName: "chevron.right")
                                     .rotationEffect(.degrees(isThinkingExpanded ? 90 : 0))
-                                    .font(.system(size: 8, weight: .bold))
+                                    .font(.system(size: 9, weight: .bold))
                                     .foregroundColor(.secondary)
                             }
                             .contentShape(Rectangle())
@@ -591,7 +591,7 @@ struct MessageBubbleView: View {
                             
                             if isThinkingExpanded {
                                 Text(reasoning.trimmingCharacters(in: .whitespacesAndNewlines))
-                                    .font(.system(.caption, design: .monospaced))
+                                    .font(.system(size: 13, design: .monospaced))
                                     .foregroundColor(.secondary)
                                     .textSelection(.enabled)
                                     .padding(.top, 4)
@@ -609,7 +609,7 @@ struct MessageBubbleView: View {
                     
                     if !parsed.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || parsed.reasoning == nil {
                         Text(parsed.content)
-                            .font(.body)
+                            .font(.system(size: 14))
                             .textSelection(.enabled)
                     }
                 }
