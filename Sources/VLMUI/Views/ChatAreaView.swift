@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import MarkdownUI
 
 struct ChatAreaView: View {
     @EnvironmentObject var appState: AppState
@@ -654,7 +655,7 @@ struct MessageBubbleView: View {
                     }
                     
                     if !parsed.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || parsed.reasoning == nil {
-                        Text(parsed.content)
+                        Markdown(parsed.content)
                             .font(.system(size: 14))
                             .textSelection(.enabled)
                     }
