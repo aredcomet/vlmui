@@ -472,6 +472,7 @@ struct ChatAreaView: View {
         thread.messages[msgIndex].activeAlternativeIndex = newIndex
         thread.messages[msgIndex].content = alternatives[newIndex]
         appState.saveWorkspace()
+        appState.objectWillChange.send()
     }
     
     private func saveEditedMessage() {
@@ -496,6 +497,7 @@ struct ChatAreaView: View {
         if let idx = thread.messages.firstIndex(where: { $0.id == msg.id }) {
             thread.messages.remove(at: idx)
             appState.saveWorkspace()
+            appState.objectWillChange.send()
         }
     }
     
