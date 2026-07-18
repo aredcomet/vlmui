@@ -62,8 +62,29 @@ public class StorageService {
     
     // MARK: - Save and Load Settings (API Configurations)
     
-    public func saveSettings(config: ModelConfig, connectors: [String: String]) {
-        let payload = SettingsPayload(config: config, connectors: connectors)
+    public static func getDefaultProviders() -> [ProviderConfig] {
+        return [
+            ProviderConfig(
+                name: "Google AI Studio",
+                type: .google,
+                endpointUrl: "https://generativelanguage.googleapis.com",
+                availableModels: ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"],
+                selectedModels: ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"],
+                isEnabled: true
+            ),
+            ProviderConfig(
+                name: "OpenAI Compatible",
+                type: .openai,
+                endpointUrl: "https://api.openai.com/v1",
+                availableModels: ["gpt-4o", "gpt-4o-mini", "o1-mini"],
+                selectedModels: ["gpt-4o", "gpt-4o-mini", "o1-mini"],
+                isEnabled: true
+            )
+        ]
+    }
+    
+    public func saveSettings(config: ModelConfig, connectors: [String: String], providers: [ProviderConfig]) {
+        let payload = SettingsPayload(config: config, connectors: connectors, providers: providers)
         do {
             let encoder = JSONEncoder()
             encoder.outputFormatting = .prettyPrinted
@@ -74,19 +95,21 @@ public class StorageService {
         }
     }
     
-    public func loadSettings() -> (config: ModelConfig, connectors: [String: String]) {
+    public func loadSettings() -> (config: ModelConfig, connectors: [String: String], providers: [ProviderConfig]) {
         guard FileManager.default.fileExists(atPath: settingsFileUrl.path) else {
-            return (config: ModelConfig(), connectors: [:])
+            return (config: ModelConfig(), connectors: [:], providers: Self.getDefaultProviders())
         }
         
         do {
             let data = try Data(contentsOf: settingsFileUrl)
             let decoder = JSONDecoder()
             let payload = try decoder.decode(SettingsPayload.self, from: data)
-            return (config: payload.config, connectors: payload.connectors)
+            let loadedProviders = payload.providers ?? []
+            let finalProviders = loadedProviders.isEmpty ? Self.getDefaultProviders() : loadedProviders
+            return (config: payload.config, connectors: payload.connectors, providers: finalProviders)
         } catch {
             print("Failed to load settings: \(error)")
-            return (config: ModelConfig(), connectors: [:])
+            return (config: ModelConfig(), connectors: [:], providers: Self.getDefaultProviders())
         }
     }
     
@@ -201,6 +224,7 @@ struct WorkspacePayload: Codable {
 struct SettingsPayload: Codable {
     var config: ModelConfig
     var connectors: [String: String]
+    var providers: [ProviderConfig]?
 }
 
 struct RawMCPConfig: Codable {

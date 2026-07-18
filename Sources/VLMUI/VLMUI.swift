@@ -39,6 +39,7 @@ class AppState: ObservableObject {
     @Published var systemInstruction: String = ""
     @Published var modelConfig = ModelConfig()
     @Published var mcpServers: [MCPServerState] = []
+    @Published var providers: [ProviderConfig] = []
     @Published var isSettingsPresented: Bool = false
     
     // Shared Workspace Actions & Dialog States
@@ -69,6 +70,7 @@ class AppState: ObservableObject {
         // Load settings
         let settings = StorageService.shared.loadSettings()
         self.modelConfig = settings.config
+        self.providers = settings.providers
         
         // Load workspace data
         let workspace = StorageService.shared.loadWorkspace()

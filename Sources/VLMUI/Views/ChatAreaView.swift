@@ -178,20 +178,21 @@ struct ChatAreaView: View {
                         Menu {
                             Button("Select model") {
                                 appState.modelConfig.modelName = "Select model"
+                                appState.modelConfig.providerId = nil
                             }
-                            Divider()
-                            if appState.modelConfig.provider == "Google AI Studio" {
-                                Button("gemini-1.5-flash") { appState.modelConfig.modelName = "gemini-1.5-flash" }
-                                Button("gemini-1.5-pro") { appState.modelConfig.modelName = "gemini-1.5-pro" }
-                                Button("gemini-2.0-flash") { appState.modelConfig.modelName = "gemini-2.0-flash" }
-                            } else {
-                                Button("gpt-4o") { appState.modelConfig.modelName = "gpt-4o" }
-                                Button("gpt-4o-mini") { appState.modelConfig.modelName = "gpt-4o-mini" }
-                                Button("o1-mini") { appState.modelConfig.modelName = "o1-mini" }
+                            
+                            ForEach(appState.providers.filter { $0.isEnabled }) { provider in
+                                Section(header: Text(provider.name)) {
+                                    ForEach(provider.selectedModels, id: \.self) { model in
+                                        Button(model) {
+                                            selectModel(model, from: provider)
+                                        }
+                                    }
+                                }
                             }
                         } label: {
                             HStack(spacing: 6) {
-                                Image(systemName: appState.modelConfig.modelName == "Select model" ? "cpu" : (appState.modelConfig.provider == "Google AI Studio" ? "g.circle.fill" : "o.circle.fill"))
+                                Image(systemName: providerIconName)
                                     .foregroundColor(.accentColor)
                                     .padding(.leading, 4)
                                 
@@ -323,15 +324,12 @@ struct ChatAreaView: View {
         let assistantMsg = Message(role: .assistant, content: .text(""))
         thread.messages.append(assistantMsg)
         
-        // Fetch keys from settings
-        let settings = StorageService.shared.loadSettings()
-        let apiKey = settings.connectors[appState.modelConfig.provider] ?? ""
-        let baseUrl = settings.connectors["\(appState.modelConfig.provider)_base"]
+        let creds = getActiveProviderCredentials()
         
         LLMService.shared.runCompletion(
-            providerType: appState.modelConfig.provider,
-            apiKey: apiKey,
-            baseUrl: baseUrl,
+            providerType: creds.providerType,
+            apiKey: creds.apiKey,
+            baseUrl: creds.baseUrl,
             messages: Array(thread.messages.dropLast()), // send all messages except the assistant placeholder
             systemInstruction: appState.systemInstruction,
             config: appState.modelConfig,
@@ -339,6 +337,14 @@ struct ChatAreaView: View {
                 if let index = thread.messages.firstIndex(where: { $0.id == assistantMsg.id }) {
                     let currentText = thread.messages[index].content.textString
                     thread.messages[index].content = .text(currentText + token)
+                    appState.objectWillChange.send()
+                }
+            },
+            onReasoningToken: { reasoningToken in
+                if let index = thread.messages.firstIndex(where: { $0.id == assistantMsg.id }) {
+                    let currentReasoning = thread.messages[index].reasoningContent ?? ""
+                    thread.messages[index].reasoningContent = currentReasoning + reasoningToken
+                    appState.objectWillChange.send()
                 }
             },
             onMetrics: { metrics in
@@ -380,21 +386,26 @@ struct ChatAreaView: View {
         thread.messages[lastIndex].alternativeContents = alternatives
         thread.messages[lastIndex].activeAlternativeIndex = newAlternativeIndex
         thread.messages[lastIndex].content = .text("")
+        thread.messages[lastIndex].reasoningContent = nil
         
-        let settings = StorageService.shared.loadSettings()
-        let apiKey = settings.connectors[appState.modelConfig.provider] ?? ""
-        let baseUrl = settings.connectors["\(appState.modelConfig.provider)_base"]
+        let creds = getActiveProviderCredentials()
         
         LLMService.shared.runCompletion(
-            providerType: appState.modelConfig.provider,
-            apiKey: apiKey,
-            baseUrl: baseUrl,
+            providerType: creds.providerType,
+            apiKey: creds.apiKey,
+            baseUrl: creds.baseUrl,
             messages: Array(thread.messages.prefix(lastIndex)), // send up to user query
             systemInstruction: appState.systemInstruction,
             config: appState.modelConfig,
             onToken: { token in
                 let currentText = thread.messages[lastIndex].content.textString
                 thread.messages[lastIndex].content = .text(currentText + token)
+                appState.objectWillChange.send()
+            },
+            onReasoningToken: { reasoningToken in
+                let currentReasoning = thread.messages[lastIndex].reasoningContent ?? ""
+                thread.messages[lastIndex].reasoningContent = currentReasoning + reasoningToken
+                appState.objectWillChange.send()
             },
             onMetrics: { metrics in
                 thread.messages[lastIndex].metrics = metrics
@@ -494,6 +505,29 @@ struct MessageBubbleView: View {
     var onBranch: () -> Void
     
     @State private var isHovering = false
+    @State private var isThinkingExpanded = true
+    
+    private var parsedContent: (reasoning: String?, content: String) {
+        let rawText = message.content.textString
+        
+        if let reasoning = message.reasoningContent, !reasoning.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return (reasoning, rawText)
+        }
+        
+        guard let thinkRange = rawText.range(of: "<think>") else {
+            return (nil, rawText)
+        }
+        
+        let afterThink = rawText[thinkRange.upperBound...]
+        if let endThinkRange = afterThink.range(of: "</think>") {
+            let reasoning = String(afterThink[..<endThinkRange.lowerBound])
+            let remainder = String(afterThink[endThinkRange.upperBound...])
+            return (reasoning, remainder)
+        } else {
+            let reasoning = String(afterThink)
+            return (reasoning, "")
+        }
+    }
     
     var body: some View {
         VStack(alignment: message.role == .user ? .trailing : .leading, spacing: 6) {
@@ -531,9 +565,53 @@ struct MessageBubbleView: View {
                         }
                     }
                     
-                    Text(message.content.textString)
-                        .font(.body)
-                        .textSelection(.enabled)
+                    let parsed = parsedContent
+                    
+                    if let reasoning = parsed.reasoning, !reasoning.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Image(systemName: "brain")
+                                    .foregroundColor(.accentColor)
+                                    .font(.system(size: 10))
+                                Text("Thinking Process")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .rotationEffect(.degrees(isThinkingExpanded ? 90 : 0))
+                                    .font(.system(size: 8, weight: .bold))
+                                    .foregroundColor(.secondary)
+                            }
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                withAnimation(.easeInOut(duration: 0.15)) {
+                                    isThinkingExpanded.toggle()
+                                }
+                            }
+                            
+                            if isThinkingExpanded {
+                                Text(reasoning.trimmingCharacters(in: .whitespacesAndNewlines))
+                                    .font(.system(.caption, design: .monospaced))
+                                    .foregroundColor(.secondary)
+                                    .textSelection(.enabled)
+                                    .padding(.top, 4)
+                            }
+                        }
+                        .padding(8)
+                        .background(Color.primary.opacity(0.03))
+                        .cornerRadius(6)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6)
+                                .stroke(Color.secondary.opacity(0.15), lineWidth: 0.5)
+                        )
+                        .padding(.bottom, 6)
+                    }
+                    
+                    if !parsed.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || parsed.reasoning == nil {
+                        Text(parsed.content)
+                            .font(.body)
+                            .textSelection(.enabled)
+                    }
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 10)
@@ -691,5 +769,60 @@ struct ImageContainer: View {
             return nil
         }
         return NSImage(data: data)
+    }
+}
+
+// MARK: - ChatAreaView Provider Configuration Helpers
+
+extension ChatAreaView {
+    private var providerIconName: String {
+        guard appState.modelConfig.modelName != "Select model" else { return "cpu" }
+        if let providerId = appState.modelConfig.providerId,
+           let provider = appState.providers.first(where: { $0.id == providerId }) {
+            return provider.type == .google ? "g.circle.fill" : "o.circle.fill"
+        }
+        if let provider = appState.providers.first(where: { $0.name == appState.modelConfig.provider }) {
+            return provider.type == .google ? "g.circle.fill" : "o.circle.fill"
+        }
+        return "o.circle.fill"
+    }
+    
+    private func selectModel(_ model: String, from provider: ProviderConfig) {
+        appState.modelConfig.modelName = model
+        appState.modelConfig.provider = provider.name
+        appState.modelConfig.providerId = provider.id
+        
+        var connectors: [String: String] = [:]
+        if let googleProvider = appState.providers.first(where: { $0.type == .google }) {
+            connectors["Google AI Studio"] = googleProvider.apiKey
+        }
+        if let openaiProvider = appState.providers.first(where: { $0.type == .openai }) {
+            connectors["OpenAI Compatible_base"] = openaiProvider.endpointUrl
+            connectors["OpenAI Compatible"] = openaiProvider.apiKey
+        }
+        StorageService.shared.saveSettings(
+            config: appState.modelConfig,
+            connectors: connectors,
+            providers: appState.providers
+        )
+    }
+    
+    private func getActiveProviderCredentials() -> (providerType: String, apiKey: String, baseUrl: String?) {
+        let providerConfig: ProviderConfig?
+        if let providerId = appState.modelConfig.providerId {
+            providerConfig = appState.providers.first(where: { $0.id == providerId })
+        } else {
+            providerConfig = appState.providers.first(where: { $0.name == appState.modelConfig.provider })
+        }
+        
+        if let provider = providerConfig {
+            return (providerType: provider.type.rawValue, apiKey: provider.apiKey, baseUrl: provider.endpointUrl)
+        } else {
+            let settings = StorageService.shared.loadSettings()
+            let providerType = appState.modelConfig.provider
+            let apiKey = settings.connectors[providerType] ?? ""
+            let baseUrl = settings.connectors["\(providerType)_base"]
+            return (providerType: providerType, apiKey: apiKey, baseUrl: baseUrl)
+        }
     }
 }

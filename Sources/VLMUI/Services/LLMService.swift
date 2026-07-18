@@ -9,6 +9,7 @@ public protocol LLMProvider {
         apiKey: String,
         baseUrl: String?,
         onToken: @escaping @MainActor (String) -> Void,
+        onReasoningToken: (@MainActor (String) -> Void)?,
         onMetrics: @escaping @MainActor (ResponseMetrics) -> Void,
         onError: @escaping @MainActor (Error) -> Void
     )
@@ -28,6 +29,7 @@ public class LLMService {
         systemInstruction: String?,
         config: ModelConfig,
         onToken: @escaping @MainActor (String) -> Void,
+        onReasoningToken: (@MainActor (String) -> Void)? = nil,
         onMetrics: @escaping @MainActor (ResponseMetrics) -> Void,
         onError: @escaping @MainActor (Error) -> Void
     ) {
@@ -51,6 +53,7 @@ public class LLMService {
             apiKey: apiKey,
             baseUrl: baseUrl,
             onToken: onToken,
+            onReasoningToken: onReasoningToken,
             onMetrics: onMetrics,
             onError: onError
         )
@@ -112,6 +115,7 @@ class GeminiProvider: LLMProvider {
         apiKey: String,
         baseUrl: String?,
         onToken: @escaping @MainActor (String) -> Void,
+        onReasoningToken: (@MainActor (String) -> Void)?,
         onMetrics: @escaping @MainActor (ResponseMetrics) -> Void,
         onError: @escaping @MainActor (Error) -> Void
     ) {
@@ -254,6 +258,7 @@ class OpenAIProvider: LLMProvider {
         apiKey: String,
         baseUrl: String?,
         onToken: @escaping @MainActor (String) -> Void,
+        onReasoningToken: (@MainActor (String) -> Void)?,
         onMetrics: @escaping @MainActor (ResponseMetrics) -> Void,
         onError: @escaping @MainActor (Error) -> Void
     ) {
@@ -267,7 +272,6 @@ class OpenAIProvider: LLMProvider {
         
         var requestMessages: [[String: Any]] = []
         
-        // System prompt as first message if exists
         if let sys = systemInstruction, !sys.isEmpty {
             requestMessages.append([
                 "role": "system",
@@ -332,7 +336,6 @@ class OpenAIProvider: LLMProvider {
         
         let delegate = StreamingSessionDelegate(
             onChunk: { chunkString in
-                // Process SSE "data: ..." format
                 let lines = chunkString.components(separatedBy: "\n")
                 for line in lines {
                     let cleaned = line.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -344,21 +347,28 @@ class OpenAIProvider: LLMProvider {
                           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                           let choices = json["choices"] as? [[String: Any]],
                           let firstChoice = choices.first,
-                          let delta = firstChoice["delta"] as? [String: Any],
-                          let text = delta["content"] as? String else {
+                          let delta = firstChoice["delta"] as? [String: Any] else {
                         continue
                     }
                     
-                    if tfftMs == nil {
-                        tfftMs = Date().timeIntervalSince(startTime) * 1000.0
+                    if let reasoningText = delta["reasoning_content"] as? String {
+                        if tfftMs == nil {
+                            tfftMs = Date().timeIntervalSince(startTime) * 1000.0
+                        }
+                        accumulatedText += reasoningText
+                        onReasoningToken?(reasoningText)
+                    } else if let text = delta["content"] as? String {
+                        if tfftMs == nil {
+                            tfftMs = Date().timeIntervalSince(startTime) * 1000.0
+                        }
+                        accumulatedText += text
+                        onToken(text)
                     }
-                    accumulatedText += text
-                    onToken(text)
                 }
             },
             onComplete: {
                 let duration = Date().timeIntervalSince(startTime)
-                let tokenCount = accumulatedText.count / 4 // crude estimate
+                let tokenCount = accumulatedText.count / 4
                 let throughput = duration > 0 ? Double(tokenCount) / duration : 0
                 onMetrics(ResponseMetrics(
                     tfftMs: tfftMs ?? 100,

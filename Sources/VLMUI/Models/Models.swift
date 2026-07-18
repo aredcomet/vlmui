@@ -44,6 +44,7 @@ public struct Message: Identifiable, Codable {
     public var role: MessageRole
     public var content: MessageContent
     public var timestamp: Date
+    public var reasoningContent: String?
     
     // Metrics for assistant responses
     public var metrics: ResponseMetrics?
@@ -53,11 +54,12 @@ public struct Message: Identifiable, Codable {
     public var alternativeContents: [MessageContent]?
     public var activeAlternativeIndex: Int?
     
-    public init(id: UUID = UUID(), role: MessageRole, content: MessageContent, timestamp: Date = Date(), metrics: ResponseMetrics? = nil, alternativeContents: [MessageContent]? = nil, activeAlternativeIndex: Int? = nil) {
+    public init(id: UUID = UUID(), role: MessageRole, content: MessageContent, timestamp: Date = Date(), reasoningContent: String? = nil, metrics: ResponseMetrics? = nil, alternativeContents: [MessageContent]? = nil, activeAlternativeIndex: Int? = nil) {
         self.id = id
         self.role = role
         self.content = content
         self.timestamp = timestamp
+        self.reasoningContent = reasoningContent
         self.metrics = metrics
         self.alternativeContents = alternativeContents
         self.activeAlternativeIndex = activeAlternativeIndex
@@ -178,9 +180,37 @@ public struct ResponseMetrics: Codable {
 
 // MARK: - Configurations & MCP
 
+public enum ProviderType: String, Codable, CaseIterable {
+    case google = "Google AI Studio"
+    case openai = "OpenAI Compatible"
+}
+
+public struct ProviderConfig: Identifiable, Codable, Equatable {
+    public var id: UUID
+    public var name: String
+    public var type: ProviderType
+    public var endpointUrl: String
+    public var apiKey: String
+    public var availableModels: [String]
+    public var selectedModels: [String]
+    public var isEnabled: Bool
+    
+    public init(id: UUID = UUID(), name: String, type: ProviderType, endpointUrl: String = "", apiKey: String = "", availableModels: [String] = [], selectedModels: [String] = [], isEnabled: Bool = true) {
+        self.id = id
+        self.name = name
+        self.type = type
+        self.endpointUrl = endpointUrl
+        self.apiKey = apiKey
+        self.availableModels = availableModels
+        self.selectedModels = selectedModels
+        self.isEnabled = isEnabled
+    }
+}
+
 public struct ModelConfig: Codable, Equatable {
     public var provider: String = "Google AI Studio"
     public var modelName: String = "Select model"
+    public var providerId: UUID? = nil
     
     public var temperature: Double = 0.7
     public var topK: Int = 40
