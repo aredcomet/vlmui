@@ -139,38 +139,38 @@ public class StorageService {
                     description = "Configured Server"
                 }
                 
-                // Populate realistic mock tools for testing
+                // Populate realistic mock tools for testing (default disabled)
                 let tools: [MCPToolState]
                 if serverName == "duckduckgo" || serverName == "ddg-search" {
                     tools = [
-                        MCPToolState(name: "search", isEnabled: true, permission: .alwaysAllowed),
-                        MCPToolState(name: "fetch_content", isEnabled: true, permission: .alwaysAllowed),
-                        MCPToolState(name: "get_current_date", isEnabled: true, permission: .alwaysAllowed)
+                        MCPToolState(name: "search", isEnabled: false, permission: .alwaysAllowed),
+                        MCPToolState(name: "fetch_content", isEnabled: false, permission: .alwaysAllowed),
+                        MCPToolState(name: "get_current_date", isEnabled: false, permission: .alwaysAllowed)
                     ]
                 } else if serverName == "huggingface" {
                     tools = [
-                        MCPToolState(name: "text_generation", isEnabled: true, permission: .ask),
-                        MCPToolState(name: "image_classification", isEnabled: true, permission: .alwaysAllowed)
+                        MCPToolState(name: "text_generation", isEnabled: false, permission: .ask),
+                        MCPToolState(name: "image_classification", isEnabled: false, permission: .alwaysAllowed)
                     ]
                 } else if serverName == "ragsearch" {
                     tools = [
-                        MCPToolState(name: "query_kb", isEnabled: true, permission: .alwaysAllowed)
+                        MCPToolState(name: "query_kb", isEnabled: false, permission: .alwaysAllowed)
                     ]
                 } else if serverName == "datacommons-mcp" {
                     tools = [
-                        MCPToolState(name: "get_data", isEnabled: true, permission: .ask),
-                        MCPToolState(name: "query_stats", isEnabled: true, permission: .ask)
+                        MCPToolState(name: "get_data", isEnabled: false, permission: .ask),
+                        MCPToolState(name: "query_stats", isEnabled: false, permission: .ask)
                     ]
                 } else {
                     tools = [
-                        MCPToolState(name: "execute", isEnabled: true, permission: .ask)
+                        MCPToolState(name: "execute", isEnabled: false, permission: .ask)
                     ]
                 }
                 
                 servers.append(MCPServerState(
                     name: serverName,
                     description: description,
-                    isEnabled: true,
+                    isEnabled: false,
                     permissionMode: .perTool,
                     tools: tools
                 ))
@@ -184,11 +184,11 @@ public class StorageService {
     
     private func getStubMCPServers() -> [MCPServerState] {
         return [
-            MCPServerState(name: "fetch-url", description: "Retrieves webpage content using HTTP GET", isEnabled: true, tools: [
-                MCPToolState(name: "fetch_webpage", isEnabled: true, permission: .alwaysAllowed)
+            MCPServerState(name: "fetch-url", description: "Retrieves webpage content using HTTP GET", isEnabled: false, tools: [
+                MCPToolState(name: "fetch_webpage", isEnabled: false, permission: .alwaysAllowed)
             ]),
             MCPServerState(name: "filesystem", description: "Performs sandbox filesystem access", isEnabled: false, tools: [
-                MCPToolState(name: "read_file", isEnabled: true, permission: .ask),
+                MCPToolState(name: "read_file", isEnabled: false, permission: .ask),
                 MCPToolState(name: "write_file", isEnabled: false, permission: .ask)
             ])
         ]
