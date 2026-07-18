@@ -14,64 +14,113 @@ struct ChatAreaView: View {
     
     // State for loading response
     @State private var isGenerating = false
+    @State private var shouldAutoScroll: Bool = true
+    @State private var scrollTrigger = UUID()
     
     var body: some View {
         VStack(spacing: 0) {
             
             // 2. Chat Area scrollview
             if let thread = currentThread {
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        VStack(spacing: 16) {
-                            ForEach(Array(thread.messages.enumerated()), id: \.element.id) { index, msg in
-                                MessageBubbleView(
-                                    message: msg,
-                                    isLast: index == thread.messages.count - 1,
-                                    onEdit: {
-                                        editingMessageId = msg.id
-                                        editText = msg.content.textString
-                                    },
-                                    onDelete: {
-                                        deleteMessage(msg, in: thread)
-                                    },
-                                    onRetry: {
-                                        retryGeneration(in: thread)
-                                    },
-                                    onAlternativeChanged: { newIndex in
-                                        changeAlternative(message: msg, toIndex: newIndex, in: thread)
-                                        withAnimation(.easeInOut(duration: 0.15)) {
-                                            proxy.scrollTo(msg.id, anchor: .bottom)
+                ZStack(alignment: .bottomTrailing) {
+                    ScrollViewReader { proxy in
+                        ScrollView {
+                            VStack(spacing: 16) {
+                                ForEach(Array(thread.messages.enumerated()), id: \.element.id) { index, msg in
+                                    MessageBubbleView(
+                                        message: msg,
+                                        isLast: index == thread.messages.count - 1,
+                                        onEdit: {
+                                            editingMessageId = msg.id
+                                            editText = msg.content.textString
+                                        },
+                                        onDelete: {
+                                            deleteMessage(msg, in: thread)
+                                        },
+                                        onRetry: {
+                                            retryGeneration(in: thread)
+                                        },
+                                        onAlternativeChanged: { newIndex in
+                                            changeAlternative(message: msg, toIndex: newIndex, in: thread)
+                                            withAnimation(.easeInOut(duration: 0.15)) {
+                                                proxy.scrollTo(msg.id, anchor: .bottom)
+                                            }
+                                        },
+                                        onBranch: {
+                                            branchConversation(atIndex: index, in: thread)
                                         }
-                                    },
-                                    onBranch: {
-                                        branchConversation(atIndex: index, in: thread)
-                                    }
-                                )
-                                .id(msg.id)
-                            }
-                            
-                            if isGenerating {
-                                HStack {
-                                    ProgressView()
-                                        .controlSize(.small)
-                                    Text("Generating response...")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                    Spacer()
+                                    )
+                                    .id(msg.id)
                                 }
-                                .padding()
-                                .background(Color.primary.opacity(0.02))
-                                .cornerRadius(8)
+                                
+                                if isGenerating {
+                                    HStack {
+                                        ProgressView()
+                                            .controlSize(.small)
+                                        Text("Generating response...")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                        Spacer()
+                                    }
+                                    .padding()
+                                    .background(Color.primary.opacity(0.02))
+                                    .cornerRadius(8)
+                                }
+                            }
+                            .padding()
+                        }
+                        .simultaneousGesture(
+                            DragGesture().onChanged { _ in
+                                if isGenerating {
+                                    shouldAutoScroll = false
+                                }
+                            }
+                        )
+                        .onChange(of: thread.messages.count) {
+                            if shouldAutoScroll, let last = thread.messages.last {
+                                withAnimation {
+                                    proxy.scrollTo(last.id, anchor: .bottom)
+                                }
                             }
                         }
-                        .padding()
+                        .onChange(of: scrollTrigger) {
+                            if shouldAutoScroll, let last = thread.messages.last {
+                                withAnimation(.easeOut(duration: 0.15)) {
+                                    proxy.scrollTo(last.id, anchor: .bottom)
+                                }
+                            }
+                        }
                     }
-                    .onChange(of: thread.messages.count) {
-                        if let last = thread.messages.last {
+                    
+                    // Floating scroll-to-bottom button
+                    if isGenerating && !shouldAutoScroll {
+                        Button(action: {
                             withAnimation {
-                                proxy.scrollTo(last.id, anchor: .bottom)
+                                shouldAutoScroll = true
+                                scrollTrigger = UUID()
                             }
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "chevron.down")
+                                    .font(.system(size: 10, weight: .bold))
+                                Text("Scroll to bottom")
+                                    .font(.system(size: 10, weight: .bold))
+                            }
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(Color(NSColor.windowBackgroundColor))
+                            .cornerRadius(12)
+                            .shadow(color: Color.black.opacity(0.1), radius: 3, x: 0, y: 1)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color.secondary.opacity(0.2), lineWidth: 0.5)
+                            )
                         }
+                        .buttonStyle(.plain)
+                        .padding(.trailing, 20)
+                        .padding(.bottom, 20)
+                        .transition(.opacity)
                     }
                 }
             } else {
@@ -331,6 +380,9 @@ struct ChatAreaView: View {
         let startTime = Date()
         var hasCalculatedThinkingDuration = false
         
+        shouldAutoScroll = true
+        scrollTrigger = UUID()
+        
         let creds = getActiveProviderCredentials()
         
         LLMService.shared.runCompletion(
@@ -358,6 +410,9 @@ struct ChatAreaView: View {
                         }
                     }
                     
+                    if shouldAutoScroll {
+                        scrollTrigger = UUID()
+                    }
                     appState.objectWillChange.send()
                 }
             },
@@ -365,6 +420,9 @@ struct ChatAreaView: View {
                 if let index = thread.messages.firstIndex(where: { $0.id == assistantMsg.id }) {
                     let currentReasoning = thread.messages[index].reasoningContent ?? ""
                     thread.messages[index].reasoningContent = currentReasoning + reasoningToken
+                    if shouldAutoScroll {
+                        scrollTrigger = UUID()
+                    }
                     appState.objectWillChange.send()
                 }
             },
@@ -412,6 +470,9 @@ struct ChatAreaView: View {
         let startTime = Date()
         var hasCalculatedThinkingDuration = false
         
+        shouldAutoScroll = true
+        scrollTrigger = UUID()
+        
         let creds = getActiveProviderCredentials()
         
         LLMService.shared.runCompletion(
@@ -438,11 +499,17 @@ struct ChatAreaView: View {
                     }
                 }
                 
+                if shouldAutoScroll {
+                    scrollTrigger = UUID()
+                }
                 appState.objectWillChange.send()
             },
             onReasoningToken: { reasoningToken in
                 let currentReasoning = thread.messages[lastIndex].reasoningContent ?? ""
                 thread.messages[lastIndex].reasoningContent = currentReasoning + reasoningToken
+                if shouldAutoScroll {
+                    scrollTrigger = UUID()
+                }
                 appState.objectWillChange.send()
             },
             onMetrics: { metrics in
