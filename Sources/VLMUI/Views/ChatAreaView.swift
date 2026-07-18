@@ -324,6 +324,9 @@ struct ChatAreaView: View {
         let assistantMsg = Message(role: .assistant, content: .text(""))
         thread.messages.append(assistantMsg)
         
+        let startTime = Date()
+        var hasCalculatedThinkingDuration = false
+        
         let creds = getActiveProviderCredentials()
         
         LLMService.shared.runCompletion(
@@ -337,6 +340,20 @@ struct ChatAreaView: View {
                 if let index = thread.messages.firstIndex(where: { $0.id == assistantMsg.id }) {
                     let currentText = thread.messages[index].content.textString
                     thread.messages[index].content = .text(currentText + token)
+                    
+                    if !hasCalculatedThinkingDuration {
+                        let text = currentText + token
+                        let hasNativeReasoning = (thread.messages[index].reasoningContent?.isEmpty == false)
+                        let hasClosedThinkTag = text.contains("</think>")
+                        let hasStartedRegularContent = hasNativeReasoning && !token.isEmpty
+                        
+                        if hasClosedThinkTag || hasStartedRegularContent {
+                            let duration = Date().timeIntervalSince(startTime)
+                            thread.messages[index].thinkingDuration = duration
+                            hasCalculatedThinkingDuration = true
+                        }
+                    }
+                    
                     appState.objectWillChange.send()
                 }
             },
@@ -388,6 +405,9 @@ struct ChatAreaView: View {
         thread.messages[lastIndex].content = .text("")
         thread.messages[lastIndex].reasoningContent = nil
         
+        let startTime = Date()
+        var hasCalculatedThinkingDuration = false
+        
         let creds = getActiveProviderCredentials()
         
         LLMService.shared.runCompletion(
@@ -400,6 +420,20 @@ struct ChatAreaView: View {
             onToken: { token in
                 let currentText = thread.messages[lastIndex].content.textString
                 thread.messages[lastIndex].content = .text(currentText + token)
+                
+                if !hasCalculatedThinkingDuration {
+                    let text = currentText + token
+                    let hasNativeReasoning = (thread.messages[lastIndex].reasoningContent?.isEmpty == false)
+                    let hasClosedThinkTag = text.contains("</think>")
+                    let hasStartedRegularContent = hasNativeReasoning && !token.isEmpty
+                    
+                    if hasClosedThinkTag || hasStartedRegularContent {
+                        let duration = Date().timeIntervalSince(startTime)
+                        thread.messages[lastIndex].thinkingDuration = duration
+                        hasCalculatedThinkingDuration = true
+                    }
+                }
+                
                 appState.objectWillChange.send()
             },
             onReasoningToken: { reasoningToken in
@@ -573,7 +607,19 @@ struct MessageBubbleView: View {
                                 Image(systemName: "brain")
                                     .foregroundColor(.accentColor)
                                     .font(.system(size: 11))
-                                Text("Thinking Process")
+                                let headerText: String = {
+                                    if let duration = message.thinkingDuration {
+                                        if duration < 10 {
+                                            return "Thought for \(String(format: "%.1f", duration)) seconds"
+                                        } else {
+                                            return "Thought for \(Int(round(duration))) seconds"
+                                        }
+                                    } else {
+                                        return "Thinking..."
+                                    }
+                                }()
+                                
+                                Text(headerText)
                                     .font(.system(size: 11, weight: .bold))
                                     .foregroundColor(.secondary)
                                 Spacer()

@@ -45,6 +45,7 @@ public struct Message: Identifiable, Codable {
     public var content: MessageContent
     public var timestamp: Date
     public var reasoningContent: String?
+    public var thinkingDuration: Double?
     
     // Metrics for assistant responses
     public var metrics: ResponseMetrics?
@@ -54,12 +55,13 @@ public struct Message: Identifiable, Codable {
     public var alternativeContents: [MessageContent]?
     public var activeAlternativeIndex: Int?
     
-    public init(id: UUID = UUID(), role: MessageRole, content: MessageContent, timestamp: Date = Date(), reasoningContent: String? = nil, metrics: ResponseMetrics? = nil, alternativeContents: [MessageContent]? = nil, activeAlternativeIndex: Int? = nil) {
+    public init(id: UUID = UUID(), role: MessageRole, content: MessageContent, timestamp: Date = Date(), reasoningContent: String? = nil, thinkingDuration: Double? = nil, metrics: ResponseMetrics? = nil, alternativeContents: [MessageContent]? = nil, activeAlternativeIndex: Int? = nil) {
         self.id = id
         self.role = role
         self.content = content
         self.timestamp = timestamp
         self.reasoningContent = reasoningContent
+        self.thinkingDuration = thinkingDuration
         self.metrics = metrics
         self.alternativeContents = alternativeContents
         self.activeAlternativeIndex = activeAlternativeIndex
