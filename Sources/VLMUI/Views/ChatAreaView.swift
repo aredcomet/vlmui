@@ -729,15 +729,21 @@ struct MessageBubbleView: View {
                 
                 // Hover Options Menu
                 if isHovering {
-                    HStack(spacing: 8) {
+                    HStack(spacing: 10) {
                         Button(action: copyToClipboard) {
                             Image(systemName: "doc.on.doc")
+                                .font(.system(size: 13))
+                                .padding(4)
+                                .contentShape(Rectangle())
                                 .help("Copy Message")
                         }
                         .buttonStyle(.plain)
                         
                         Button(action: onEdit) {
                             Image(systemName: "pencil")
+                                .font(.system(size: 13))
+                                .padding(4)
+                                .contentShape(Rectangle())
                                 .help("Edit Message")
                         }
                         .buttonStyle(.plain)
@@ -745,6 +751,9 @@ struct MessageBubbleView: View {
                         if message.role == .assistant {
                             Button(action: onBranch) {
                                 Image(systemName: "arrow.branch")
+                                    .font(.system(size: 13))
+                                    .padding(4)
+                                    .contentShape(Rectangle())
                                     .help("Branch Thread")
                             }
                             .buttonStyle(.plain)
@@ -752,12 +761,18 @@ struct MessageBubbleView: View {
                             if isLast {
                                 Button(action: onRetry) {
                                     Image(systemName: "arrow.clockwise")
+                                        .font(.system(size: 13))
+                                        .padding(4)
+                                        .contentShape(Rectangle())
                                         .help("Retry Response")
                                 }
                                 .buttonStyle(.plain)
                                 
                                 Button(action: onDelete) {
                                     Image(systemName: "trash")
+                                        .font(.system(size: 13))
+                                        .padding(4)
+                                        .contentShape(Rectangle())
                                         .help("Delete Message")
                                 }
                                 .buttonStyle(.plain)
@@ -765,18 +780,21 @@ struct MessageBubbleView: View {
                         } else if message.role == .user {
                             Button(action: onDelete) {
                                 Image(systemName: "trash")
+                                    .font(.system(size: 13))
+                                    .padding(4)
+                                    .contentShape(Rectangle())
                                     .help("Delete Message")
                             }
                             .buttonStyle(.plain)
                         }
                     }
-                    .font(.caption)
                     .foregroundColor(.secondary)
                     .transition(.opacity)
                 }
             }
-            .frame(height: 20)
+            .frame(height: 24)
         }
+        .contentShape(Rectangle())
         .onHover { hover in
             withAnimation(.easeInOut(duration: 0.1)) {
                 isHovering = hover
